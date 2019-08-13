@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Img</title>
+</head>
+<body style="padding:10px 0 0;margin:0 auto;text-align: center;user-select:none;">
+    <canvas id="img-box" width="350" height="350" style="cursor: pointer;"></canvas>
+    <button onClick="rotateImg()">旋转</button>
+    <script type="text/javascript">
+      // 从父窗口获取图片src
+      let parent_img_url = window.opener.document.getElementById('base-box').src;
+
+      let isMouseDown = false; // 鼠标是否按下
+      let mouseDownLocation; // 鼠标按下的位置
+      let imgX = 0;
+      let imgY = 0;
+
+      let canvas = document.getElementById("img-box");
+      let ctx = canvas.getContext("2d");
+
+      let img = new Image();
+      img.src = parent_img_url;
+
+      // 鼠标超出canvas就停止拖动
+      function overDocument(event){
+        if (!(event.target.id && event.target.id === "img-box")) {
+          isMouseDown = false;
+        }
+      }
+      document.documentElement.addEventListener("mouseover", overDocument, false);
+      
+      // 加载图片到canvas
+      function loadImg() {
+        img.onload = function(){
+          ctx.drawImage(img, 0, 0, 350, 350)
+        }
+      }
+      
+      let roteTimes = 0; // 控制旋转的次数
+      let rotate;
+      function rotateImg() {
+        roteTimes += 1;
+        rotate = (roteTimes % 4) * 90;
+        
+        // 避免图片跨域问题
+        img.setAttribute("crossOrigin", "Anonymous");
+        if (rotate > 45 && rotate < 135) {
+          canvas.width ^= canvas.height;
+          canvas.height ^= canvas.width;
+          canvas.width ^= canvas.height;
+        } else if (rotate > 225 && rotate < 315) {
+          canvas.width ^= canvas.height;
+          canvas.height ^= canvas.width;
+          canvas.width ^= canvas.height;
+        } else {
+          canvas.width = canvas.width;
+          canvas.height = canvas.height;
+        }
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(rotate * Math.PI / 180);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
+      
+      loadImg();
+      
+      // 计算窗口的坐标在canvas上的位置
+      function windowToCanvas(canvas, x, y) {
+        let bbox = canvas.getBoundingClientRect();
+        return {
+          x: x - bbox.left - (bbox.width - canvas.width) / 2,
+          y: y - bbox.top - (bbox.height - canvas.height) / 2
+        };
+      }
+      // 鼠标抬起
+      function doMouseUp(event) {
+        isMouseDown = false;
+        canvas.style.cursor = "pointer";
+      }
+      
+      //滚动放大缩小
+      function doMouseWheel(event) {
+        let scaleX;
+        let scaleY;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if(event.deltaY < 0) {
+          scaleX = parseInt(canvas.width * (1 + 0.1));
+          scaleY = parseInt(canvas.height * (1 + 0.1));
+        } else {
+          scaleX = parseInt(canvas.width * (1 - 0.1));
+          scaleY = parseInt(canvas.height * (1 - 0.1));
+        }
+        canvas.width = scaleX;
+        canvas.height = scaleY;
+        // 如果旋转了的话，还要移动原点之后再进行放大
+        if (roteTimes % 4 === 1) {
+          ctx.translate(canvas.width, 0);
+        } else if (roteTimes % 4 === 2) {
+          ctx.translate(canvas.width, canvas.height);
+        } else if (roteTimes % 4 === 3){
+          ctx.translate(0, canvas.height);
+        } else {
+          ctx.translate(0, 0);
+        }
+        ctx.rotate(rotate * Math.PI / 180);
+        ctx.drawImage(img, 0, 0, scaleX, scaleY);
+      }
+      
+      // 拖动图片
+      function doMouseMove(event) {
+        if(isMouseDown) {
+          canvas.style.cursor = "move";
+          let newMouseLocation = windowToCanvas(canvas, event.clientX, event.clientY);
+          let x = newMouseLocation.x - mouseDownLocation.x;
+          let y = newMouseLocation.y - mouseDownLocation.y;
+          mouseDownLocation = newMouseLocation;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // 如果旋转了的话，还要移动原点之后再进行拖动
+          if (roteTimes % 4 === 1) {
+            ctx.translate(y, -x);
+          } else if (roteTimes % 4 === 2) {
+            ctx.translate(-x, -y);
+          } else if (roteTimes % 4 === 3){
+            ctx.translate(-y, x);
+          } else {
+            ctx.translate(x, y);
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+      }
+      canvas.addEventListener("mouseup", doMouseUp, false);
+      canvas.addEventListener("mousewheel", doMouseWheel, false);
+      canvas.addEventListener("mousemove", doMouseMove, false);
+      canvas.onmousedown = function(event) {
+        mouseDownLocation = windowToCanvas(canvas, event.clientX, event.clientY);
+        if(mouseDownLocation) {
+          isMouseDown = true;
+        }
+      }
+      
+    </script>
+  </body>
+</html>

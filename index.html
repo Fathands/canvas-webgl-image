@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    body{
+    }
+    .base-box{
+      width: 400px;
+      cursor: pointer;
+      display: none;
+    }
+    /* 隐藏 未选择文件 */
+    input[type="file"] {
+      width: 100px;
+      color: transparent;
+    }
+  </style>
+</head>
+<body>
+  <input type="file" id="file" onchange="fileUpload();" />
+  <img alt="1" class="base-box" id="base-box" onClick="openNewWindow()">
+  <canvas id="img-compressor" width="400" height="400"></canvas>
+  <button onClick="toGray()">灰色</button>
+  <svg  class="autoscale gsicon" viewBox="0 0 14 18" width="14" height="18" fill="black"><path d="M14,6 L10,6 L10,0 L4,0 L4,6 L0,6 L7,13 L14,6 L14,6 Z M0,14 L0,16 L14,16 L14,14 Z" /></svg>
+  <a href="https://devo.666visa.cn/material/applicant_id_photo_dest_photo_037a20d62bf3d5e4df4f4d67932aa693.jpg?v=3539527065+'&response-content-type=application/octet-stream&filename=eee'" target="_blank" download="test.jpg">sss</a>
+  <canvas id="test" width="26" height="32"></canvas>
+  <script type="text/javascript">
+      
+    // canvas 用来压缩图片 和 置于灰色
+    let canvas = document.getElementById("img-compressor");
+    let ctx = canvas.getContext("2d");
+    
+    let cacheCanvas
+
+    function getCacheCanvas(width, height) {
+            
+      let imageData = ctx.getImageData(0, 0, width, height);
+      let originalData = imageData.data;
+
+      let canvas_cache = document.createElement('canvas')
+      let ctx_cache = canvas_cache.getContext("2d");
+      canvas_cache.width = width;
+      canvas_cache.height= height;
+
+      let test = ctx_cache.createImageData(width, height);
+      let dataTest = test.data
+      for (let index = 0; index < height; index++)
+        for (let u = 0; u < width; u++) {
+            let F = index * width + u << 2
+            dataTest[F] = originalData[F]
+            dataTest[F + 1] = originalData[F + 1]
+            dataTest[F + 2] = originalData[F + 2]
+            dataTest[F + 3] = originalData[F + 3]
+        }
+
+      ctx_cache.putImageData(test, 0, 0)
+      return canvas_cache
+    }
+
+    // 读取图片并且显示
+    function fileUpload() {
+      let file  = document.getElementById("file").files[0];
+      let imgBox  = document.getElementById("base-box");
+
+      if (URL) {
+        let url = URL.createObjectURL(file);
+        let img = new Image();
+        img.src = url;
+        img.onload = function() {
+          ctx.drawImage(img, 0, 0, 400, 400);
+          // 压缩图片
+          canvas.toBlob(function(blob){
+            let final_url = URL.createObjectURL(blob);
+          
+            imgBox.src = final_url;
+            imgBox.style.display = 'inline-block';
+            
+          }, "image/jpeg", 1);
+
+          cacheCanvas = getCacheCanvas(canvas.width, canvas.height)
+        }
+
+      }
+      // else if (FileReader) {
+      //   let reader = new FileReader();
+      //   reader.readAsDataURL(file);
+      //   reader.onload = function(e){
+      //     let img = new Image();
+      //     img.src = e.target.result;
+      //     img.onload = function() {
+      //       ctx.drawImage(img, 0, 0, 400, 400);
+      //       // 压缩图片
+      //       canvas.toBlob(function(blob){
+      //         let final_reader = new FileReader();
+      //         final_reader.readAsDataURL(blob);
+      //         final_reader.onload = function(e) {
+            
+      //           imgBox.src = e.target.result;
+      //           imgBox.style.display = 'inline-block';
+      //         }
+              
+      //       }, "image/jpeg", 1);
+      //     }
+      //   }
+      // }
+    }
+    // 打开新窗口
+    function openNewWindow() {
+      let newwindow = window.open('new_img.html', 'newwindow', 'height=400, width=400, top=20%,left=50%, toolbar=no, menubar=no, scrollbars=no, resizable=no,location=no, status=no');
+    }
+
+    function getRectInfo(O, i) {
+        var p = i.m // 原图rect的宽
+          , V = i.Q // 原图rect的高
+          , top = 0 // 有颜色的数据部分 的最小纵坐标
+          , E = 0 // 最小横坐标
+          , u = 0 // 从底部到有颜色的部分的 最大纵向距离
+          , F = 0 // 从右到左至有颜色的部分的 最大横向距离
+          , m = !1
+          , y = 0;
+        m = !1; // 先赋值 false
+        for (var z = 0; z < V; z++) { // 从头开始 从上到下的扫描
+            var _ = z * p;
+            for (var W = 0; W < p; W++)
+                if (O[_ + W] != y) // 不等于0 就是 有透明度
+                    m = !0; // m设为true
+            if (m) // 如果这一行有一个透明度不为0的就跳过，否则最小纵坐标+1
+                break;
+            else
+                top++
+        }
+        m = !1;
+        for (var z = V - 1; z >= 0; z--) { // 从底部开始 从下到上的扫描
+            var _ = z * p;
+            for (var W = 0; W < p; W++)
+                if (O[_ + W] != y)
+                    m = !0;
+            if (m) // 如果这一行有一个透明度不为0的就跳过，否则最大纵坐标+1
+                break;
+            else
+                u++
+        }
+        m = !1;
+        for (var W = 0; W < p; W++) { // 从左到右的扫描
+            for (var z = 0; z < V; z++)
+                if (O[z * p + W] != y)
+                    m = !0;
+            if (m)
+                break;
+            else
+                E++
+        }
+        m = !1;
+        for (var W = p - 1; W >= 0; W--) { // 从右到左的扫描
+            for (var z = 0; z < V; z++)
+                if (O[z * p + W] != y)
+                    m = !0;
+            if (m)
+                break;
+            else
+                F++
+        }
+        // var G = new R(i.x + E,i.y + top,p - E - F,V - top - u); // 参数分别为，横坐标， 纵坐标， 宽度， 高度， 表示有颜色的部分
+        return {x: i.x + E, y: i.y + top, m: p - E - F, Q: V - top - u}
+    }
+
+    function getValidData() {
+
+      let ctx_cache = cacheCanvas.getContext("2d");
+      let cacheData = ctx_cache.getImageData(0, 0, canvas.width, canvas.height);
+
+      let dataPointLength = new Uint8Array(cacheData.data.length >> 2)
+      let newADataPointList = new Uint8Array(dataPointLength)
+
+      let V = new Uint8Array(cacheData.data)
+      let E = newADataPointList.length
+      for (let u = 0; u < E; u++) {
+        newADataPointList[u] = V[(u << 2) + 3]
+      }
+      return getRectInfo(newADataPointList, {x: 0, y: 0, m: canvas.width, Q: canvas.height})
+    }
+
+    // 透明背景上色
+    function getOpacityData(width, height) {
+      let test = ctx.createImageData(width, height);
+      let dataTest = test.data
+      for (let index = 0; index < height; index++)
+        for (let u = 0; u < width; u++) {
+            let F = index * width + u << 2
+            , m = (index >> 2) + (u >> 2) & 1 == 1 ? 204 : 255;
+            dataTest[F] = dataTest[F + 1] = dataTest[F + 2] = m;
+            dataTest[F + 3] = 255
+        }
+      return test
+    }
+
+    // 变成灰色
+    function toGray() {
+      // 求出每个像素的灰色，然后把改变后的像素信息重新添加到canvas中
+      // for (let i = 0; i < data.length; i += 4) {
+      //   var avg = (data[i] + data[i +1] + data[i +2]) / 3;
+      //   data[i]     = avg; // red
+      //   data[i + 1] = avg; // green
+      //   data[i + 2] = avg; // blue
+      // }
+      // 透明背景上色
+      let test = getOpacityData(canvas.width, canvas.height)
+      let dataTest = test.data
+
+      let u = getValidData()
+      console.log(u);
+
+      let G = u.x
+        , J = u.x + u.m
+        , v = u.y
+        , j = u.y + u.Q;
+      let z = 1 / canvas.width
+      let _ = 1 / canvas.height
+      let W = 1 / 255
+
+      let ctx_cache = cacheCanvas.getContext("2d");
+      // let E = new Uint8Array(ctx_cache.getImageData(u.x, u.y, u.m, u.Q).data)
+
+      // for (let index = 0; index < canvas.height; index++) // 遍历高度
+      //     for (let r = 0; r < canvas.width; r++) { // 遍历宽度
+      //         let P = index * canvas.width + r // 第几个点
+      //           , N = P * 4 // rgba的点
+      //           , T = Math.round(0 + r) // 横坐标
+      //           , b = Math.round(0 + index) // 纵坐标
+      //         if (T < G || T >= J || b < v || b >= j) {} else {
+      //             // y为已经填好透明度背景的data
+      //             let red = dataTest[N] // 透明背景的r
+      //               , green = dataTest[N + 1] // 透明背景的g
+      //               , blue = dataTest[N + 2] // 透明背景的b
+      //               , alpha = dataTest[N + 3] // 透明背景的a
+      //               , K = (b - u.y) * u.m + (T - u.x) << 2; // 左移 2 相当于乘以 2 ^ 2  
+      //             alpha = E[K + 3] * W;
+      //             red = E[K + 0] * alpha + red * (1 - alpha);
+      //             green = E[K + 1] * alpha + green * (1 - alpha);
+      //             blue = E[K + 2] * alpha + blue * (1 - alpha);
+      //             dataTest[N] = red;
+      //             dataTest[N + 1] = green;
+      //             dataTest[N + 2] = blue;
+      //             dataTest[N + 3] = 255
+      //         }
+      //     }
+      ctx.putImageData(test, 0, 0);
+
+      let cacheData = ctx_cache.getImageData(u.x, u.y, u.m, u.Q)
+      let cacheOpacity = getOpacityData(cacheData.width, cacheData.height)
+      let cacheOpacityData = cacheOpacity.data
+
+      let E = new Uint8Array(cacheData.data)
+      
+      for (let index = 0; index < cacheData.height; index++) // 遍历高度
+          for (let r = 0; r < cacheData.width; r++) { // 遍历宽度
+              let P = index * cacheData.width + r // 第几个点
+                , N = P * 4 // rgba的点
+                , T = Math.round(0 + r) // 横坐标
+                , b = Math.round(0 + index) // 纵坐标
+              if (T < 0 || T >= cacheData.width || b < 0 || b >= cacheData.height) {} else {
+                  // y为已经填好透明度背景的data
+                  let red = cacheOpacityData[N] // 透明背景的r
+                    , green = cacheOpacityData[N + 1] // 透明背景的g
+                    , blue = cacheOpacityData[N + 2] // 透明背景的b
+                    , alpha = cacheOpacityData[N + 3] // 透明背景的a
+                    , K = b * u.m + T << 2; // 左移 2 相当于乘以 2 ^ 2  
+                  alpha = E[K + 3] * W;
+                  red = E[K + 0] * alpha + red * (1 - alpha);
+                  green = E[K + 1] * alpha + green * (1 - alpha);
+                  blue = E[K + 2] * alpha + blue * (1 - alpha);
+                  cacheOpacityData[N] = red;
+                  cacheOpacityData[N + 1] = green;
+                  cacheOpacityData[N + 2] = blue;
+                  cacheOpacityData[N + 3] = 255
+              }
+          }
+
+      ctx.putImageData(cacheOpacity, 0, 0);
+    }
+
+      
+    // 计算窗口的坐标在canvas上的位置
+    function windowToCanvas(canvas, x, y) {
+      let bbox = canvas.getBoundingClientRect();
+      return {
+        x: x - bbox.left - (bbox.width - canvas.width) / 2,
+        y: y - bbox.top - (bbox.height - canvas.height) / 2
+      };
+    }
+
+    let mouseDownLocation
+    let isMouseDown = false
+    canvas.onmousedown = function(event) {
+      mouseDownLocation = windowToCanvas(canvas, event.clientX, event.clientY);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if(mouseDownLocation) {
+        isMouseDown = true;
+      }
+    }
+      
+    // 拖动图片
+    canvas.onmousemove = function(event) {
+      if(isMouseDown) {
+        canvas.style.cursor = "move";
+        let newMouseLocation = windowToCanvas(canvas, event.clientX, event.clientY);
+        let x = newMouseLocation.x - mouseDownLocation.x;
+        let y = newMouseLocation.y - mouseDownLocation.y;
+        toGray(x, y)
+      }
+    }
+    
+    // 鼠标抬起
+    canvas.onmouseup = function(event) {
+      isMouseDown = false;
+    }
+  </script>
+</body>
+</html>
